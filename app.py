@@ -45,84 +45,24 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # TELEGRAM
 # =====================================================
 
-def send_telegram(
-    text,
-    important=False,
-    repeat=1
-):
 
-    url = (
-        f"https://api.telegram.org/bot"
-        f"{TELEGRAM_BOT_TOKEN}/sendMessage"
-    )
+def send_telegram(text):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
-    # =========================================
-    # A+ 超級提醒
-    # =========================================
+    try:
+        res = requests.post(
+            url,
+            json={
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": text
+            },
+            timeout=15
+        )
 
-    if "A+" in text:
+        print("Telegram:", res.status_code)
 
-        text = f"""
-🚨🚨🚨 A+級黃金訊號 🚨🚨🚨
-
-{text}
-"""
-
-        important = True
-
-        repeat = 3
-
-    # =========================================
-    # A級提醒
-    # =========================================
-
-    elif "A級" in text or "Grade：A" in text:
-
-        text = f"""
-🔥 高品質黃金訊號 🔥
-
-{text}
-"""
-
-        important = True
-
-    # =========================================
-    # 發送
-    # =========================================
-
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-
-        # True = 靜音
-        # False = 強制通知
-        "disable_notification": not important
-    }
-
-    for i in range(repeat):
-
-        try:
-
-            res = requests.post(
-                url,
-                json=payload,
-                timeout=15
-            )
-
-            print(
-                "Telegram:",
-                res.status_code
-            )
-
-            # 防止太快被限制
-            time.sleep(1)
-
-        except Exception as e:
-
-            print(
-                "Telegram Error:",
-                e
-            )
+    except Exception as e:
+        print("Telegram Error:", e)
 
 
 

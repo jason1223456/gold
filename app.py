@@ -561,113 +561,315 @@ def get_grade(score):
         return None
 
 
-def smart_money_signal(h1, m30, m15, m5, m1):
+def smart_money_signal(
+    h1,
+    m30,
+    m15,
+    m5,
+    m1
+):
+
+    # =========================================
+    # SESSION FILTER
+    # =========================================
+
     if not valid_session():
-        return {"type": "NO_TRADE", "reason": "低流動性時段"}
+
+        return {
+            "type": "NO_TRADE",
+            "reason": "低流動性時段"
+        }
+
+    # =========================================
+    # HIGH VOLATILITY FILTER
+    # =========================================
 
     if high_volatility(m1):
-        return {"type": "NO_TRADE", "reason": "高波動消息盤"}
+
+        return {
+            "type": "NO_TRADE",
+            "reason": "高波動消息盤"
+        }
+
+    # =========================================
+    # ANALYSIS
+    # =========================================
 
     trend_h1 = trend(h1)
+
     structure_m30 = market_structure(m30)
+
     bos_m15 = detect_bos(m15)
+
     choch_m5 = detect_choch(m5)
+
     sweep = liquidity_sweep(m5)
-    bullish_ob, bearish_ob = detect_order_block(m15)
+
+    bullish_ob, bearish_ob = detect_order_block(
+        m15
+    )
+
     fvg = detect_fvg(m15)
 
     price = m1.iloc[-1]["close"]
 
+    # =========================================
+    # BUY SCORE
+    # =========================================
+
     score_buy = 0
-    score_sell = 0
+
     reasons_buy = []
-    reasons_sell = []
 
     if trend_h1 == "BULL":
-        score_buy += 2
-        reasons_buy.append("H1偏多")
+
+        score_buy += 3
+
+        reasons_buy.append(
+            "H1偏多"
+        )
 
     if structure_m30 == "BULL":
+
         score_buy += 2
-        reasons_buy.append("M30 HH/HL")
+
+        reasons_buy.append(
+            "M30 HH/HL"
+        )
 
     if bos_m15 == "BOS_UP":
+
         score_buy += 2
-        reasons_buy.append("M15 BOS UP")
+
+        reasons_buy.append(
+            "M15 BOS UP"
+        )
 
     if choch_m5 == "BULL_CHOCH":
+
         score_buy += 3
-        reasons_buy.append("M5 CHOCH翻多")
+
+        reasons_buy.append(
+            "M5 CHOCH翻多"
+        )
 
     if sweep == "SWEEP_LOW":
-        score_buy += 3
-        reasons_buy.append("掃低流動性")
 
-    if bullish_ob and price <= bullish_ob + 5:
+        score_buy += 3
+
+        reasons_buy.append(
+            "掃低流動性"
+        )
+
+    # =========================================
+    # BUY OB
+    # =========================================
+
+    if (
+        bullish_ob
+        and price <= bullish_ob + 5
+    ):
+
         score_buy += 2
-        reasons_buy.append("Bullish OB")
+
+        reasons_buy.append(
+            "Bullish OB"
+        )
+
+    # =========================================
+    # BUY FVG（只算一次）
+    # =========================================
+
+    bullish_fvg_found = False
 
     for zone in fvg:
-        if zone["type"] == "BULLISH" and zone["low"] <= price <= zone["high"]:
-            score_buy += 2
-            reasons_buy.append("Bullish FVG")
+
+        if (
+            zone["type"] == "BULLISH"
+            and zone["low"] <= price <= zone["high"]
+        ):
+
+            bullish_fvg_found = True
+
+            break
+
+    if bullish_fvg_found:
+
+        score_buy += 2
+
+        reasons_buy.append(
+            "Bullish FVG"
+        )
+
+    # =========================================
+    # SELL SCORE
+    # =========================================
+
+    score_sell = 0
+
+    reasons_sell = []
 
     if trend_h1 == "BEAR":
-        score_sell += 2
-        reasons_sell.append("H1偏空")
+
+        score_sell += 3
+
+        reasons_sell.append(
+            "H1偏空"
+        )
 
     if structure_m30 == "BEAR":
+
         score_sell += 2
-        reasons_sell.append("M30 LH/LL")
+
+        reasons_sell.append(
+            "M30 LH/LL"
+        )
 
     if bos_m15 == "BOS_DOWN":
+
         score_sell += 2
-        reasons_sell.append("M15 BOS DOWN")
+
+        reasons_sell.append(
+            "M15 BOS DOWN"
+        )
 
     if choch_m5 == "BEAR_CHOCH":
+
         score_sell += 3
-        reasons_sell.append("M5 CHOCH翻空")
+
+        reasons_sell.append(
+            "M5 CHOCH翻空"
+        )
 
     if sweep == "SWEEP_HIGH":
-        score_sell += 3
-        reasons_sell.append("掃高流動性")
 
-    if bearish_ob and price >= bearish_ob - 5:
+        score_sell += 3
+
+        reasons_sell.append(
+            "掃高流動性"
+        )
+
+    # =========================================
+    # SELL OB
+    # =========================================
+
+    if (
+        bearish_ob
+        and price >= bearish_ob - 5
+    ):
+
         score_sell += 2
-        reasons_sell.append("Bearish OB")
+
+        reasons_sell.append(
+            "Bearish OB"
+        )
+
+    # =========================================
+    # SELL FVG（只算一次）
+    # =========================================
+
+    bearish_fvg_found = False
 
     for zone in fvg:
-        if zone["type"] == "BEARISH" and zone["low"] <= price <= zone["high"]:
-            score_sell += 2
-            reasons_sell.append("Bearish FVG")
 
-    buy_grade = get_grade(score_buy)
+        if (
+            zone["type"] == "BEARISH"
+            and zone["low"] <= price <= zone["high"]
+        ):
+
+            bearish_fvg_found = True
+
+            break
+
+    if bearish_fvg_found:
+
+        score_sell += 2
+
+        reasons_sell.append(
+            "Bearish FVG"
+        )
+
+    # =========================================
+    # H1 FILTER（最重要）
+    # =========================================
+
+    # H1 不是多頭 → 禁止 BUY
+
+    if trend_h1 != "BULL":
+
+        score_buy = 0
+
+        reasons_buy = []
+
+    # H1 不是空頭 → 禁止 SELL
+
+    if trend_h1 != "BEAR":
+
+        score_sell = 0
+
+        reasons_sell = []
+
+    # =========================================
+    # GRADE
+    # =========================================
+
+    buy_grade = get_grade(
+        score_buy
+    )
+
     if buy_grade:
+
         return {
+
             "type": "BUY",
+
             "grade": buy_grade,
+
             "score": score_buy,
+
             "entry": round(price, 2),
+
             "sl": round(price - 8, 2),
+
             "tp1": round(price + 15, 2),
+
             "tp2": round(price + 30, 2),
+
             "reasons": reasons_buy
         }
 
-    sell_grade = get_grade(score_sell)
+    sell_grade = get_grade(
+        score_sell
+    )
+
     if sell_grade:
+
         return {
+
             "type": "SELL",
+
             "grade": sell_grade,
+
             "score": score_sell,
+
             "entry": round(price, 2),
+
             "sl": round(price + 8, 2),
+
             "tp1": round(price - 15, 2),
+
             "tp2": round(price - 30, 2),
+
             "reasons": reasons_sell
         }
 
-    return {"type": "NO_SIGNAL"}
+    # =========================================
+    # NO SIGNAL
+    # =========================================
+
+    return {
+        "type": "NO_SIGNAL"
+    }
 
 # =====================================================
 # GPT

@@ -790,20 +790,42 @@ def smart_money_signal(
         )
 
     # =========================================
-    # H1 FILTER（最重要）
+    # HTF FILTER（放寬版）
     # =========================================
 
-    # H1 不是多頭 → 禁止 BUY
+    # H1 或 M30 同向即可
+    # 不會像以前一直翻多翻空
+    # 也不會嚴格到整天沒訊號
 
-    if trend_h1 != "BULL":
+    allow_buy = (
+
+        trend_h1 == "BULL"
+        or structure_m30 == "BULL"
+
+    )
+
+    allow_sell = (
+
+        trend_h1 == "BEAR"
+        or structure_m30 == "BEAR"
+
+    )
+
+    # =========================================
+    # BUY FILTER
+    # =========================================
+
+    if not allow_buy:
 
         score_buy = 0
 
         reasons_buy = []
 
-    # H1 不是空頭 → 禁止 SELL
+    # =========================================
+    # SELL FILTER
+    # =========================================
 
-    if trend_h1 != "BEAR":
+    if not allow_sell:
 
         score_sell = 0
 
@@ -862,6 +884,14 @@ def smart_money_signal(
 
             "reasons": reasons_sell
         }
+
+    # =========================================
+    # NO SIGNAL
+    # =========================================
+
+    return {
+        "type": "NO_SIGNAL"
+    }
 
     # =========================================
     # NO SIGNAL

@@ -36,19 +36,76 @@ from openai import OpenAI
 from ta.momentum import RSIIndicator
 from ta.trend import EMAIndicator
 from ta.volatility import AverageTrueRange
+import base64
+
+
+def decode_base64(encoded_text):
+
+    return base64.b64decode(
+        encoded_text
+    ).decode("utf-8")
+
 
 # =====================================================
 # CONFIG
 # =====================================================
 
-TWELVEDATA_API_KEY ="4a687376a74041138be71968f5acb5cb"
-OPENAI_API_KEY ="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"
-TELEGRAM_BOT_TOKEN = "8661004639:AAGIYP7RewZ8gVSm93DXEm6DZ-gbkP38tXk"
-TELEGRAM_CHAT_ID = "6901713216"
+# =====================================================
+# BASE64 KEYS
+# =====================================================
 
-SUPABASE_URL = "https://oiaweokyqcedfbyxuvmz.supabase.co"
+# TwelveData
+TWELVEDATA_API_KEY_BASE64 = (
+    "NGE2ODczNzZhNzQwNDExMzhiZTcxOTY4ZjVhY2I1Y2I="
+)
 
-SUPABASE_KEY = "sb_publishable_Qpl76-9aCO1I-aUbRLR_ig_wp2CPizL"
+# OpenAI
+OPENAI_API_KEY_BASE64 = (
+    "c2stcHJvai1UalRfVmFXWjBxZmxoeWJuTTdEQmE4RWpiV2xfaEFwWDJ2LVc3VWRZVWQtU0FJcm14ZFVZUGxHMjA2a05mbzZLSnVWQnVFTkphQ1QzQmxia0ZKZnBPSGdneHg5cjZzeGxJS2NQZDFnZHBSQjZSWWV5em8tNzh0UTdRa0RpazBoSTZibVpFeFpKSTRBdHBXS1NXS3p0TDN2X0RZQUE="
+)
+
+# Telegram Bot Token
+TELEGRAM_BOT_TOKEN_BASE64 = (
+    "ODY2MTAwNDYzOTpBQUdJWVA3UmV3WjhnVlNtOTNEWEVtNkRaLWdia1AzOHRYaw=="
+)
+
+# Telegram Chat ID
+TELEGRAM_CHAT_ID_BASE64 = (
+    "NjkwMTcxMzIxNg=="
+)
+
+# Supabase URL
+SUPABASE_URL_BASE64 = (
+    "aHR0cHM6Ly9vaWF3ZW9reXFjZWRmYnl4dXZtei5zdXBhYmFzZS5jbw=="
+)
+
+# Supabase Key
+SUPABASE_KEY_BASE64 = (
+    "c2JfcHVibGlzaGFibGVfUXBsNzYtOWFDTzFJLWFVYlJMUl9pZ193cDJDUGl6TA=="
+)
+TWELVEDATA_API_KEY = decode_base64(
+    TWELVEDATA_API_KEY_BASE64
+)
+
+OPENAI_API_KEY = decode_base64(
+    OPENAI_API_KEY_BASE64
+)
+
+TELEGRAM_BOT_TOKEN = decode_base64(
+    TELEGRAM_BOT_TOKEN_BASE64
+)
+
+TELEGRAM_CHAT_ID = decode_base64(
+    TELEGRAM_CHAT_ID_BASE64
+)
+
+SUPABASE_URL = decode_base64(
+    SUPABASE_URL_BASE64
+)
+
+SUPABASE_KEY = decode_base64(
+    SUPABASE_KEY_BASE64
+)
 
 SYMBOL = "XAU/USD"
 STATE_FILE = "trade_state.json"

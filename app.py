@@ -621,14 +621,16 @@ def smart_money_signal(
 
     reasons_buy = []
 
+    # H1
     if trend_h1 == "BULL":
 
-        score_buy += 3
+        score_buy += 2
 
         reasons_buy.append(
             "H1偏多"
         )
 
+    # M30
     if structure_m30 == "BULL":
 
         score_buy += 2
@@ -637,6 +639,7 @@ def smart_money_signal(
             "M30 HH/HL"
         )
 
+    # M15 BOS
     if bos_m15 == "BOS_UP":
 
         score_buy += 2
@@ -645,6 +648,7 @@ def smart_money_signal(
             "M15 BOS UP"
         )
 
+    # M5 CHOCH
     if choch_m5 == "BULL_CHOCH":
 
         score_buy += 3
@@ -653,6 +657,7 @@ def smart_money_signal(
             "M5 CHOCH翻多"
         )
 
+    # Sweep
     if sweep == "SWEEP_LOW":
 
         score_buy += 3
@@ -662,7 +667,7 @@ def smart_money_signal(
         )
 
     # =========================================
-    # BUY OB
+    # BUY ORDER BLOCK
     # =========================================
 
     if (
@@ -709,14 +714,16 @@ def smart_money_signal(
 
     reasons_sell = []
 
+    # H1
     if trend_h1 == "BEAR":
 
-        score_sell += 3
+        score_sell += 2
 
         reasons_sell.append(
             "H1偏空"
         )
 
+    # M30
     if structure_m30 == "BEAR":
 
         score_sell += 2
@@ -725,6 +732,7 @@ def smart_money_signal(
             "M30 LH/LL"
         )
 
+    # M15 BOS
     if bos_m15 == "BOS_DOWN":
 
         score_sell += 2
@@ -733,6 +741,7 @@ def smart_money_signal(
             "M15 BOS DOWN"
         )
 
+    # M5 CHOCH
     if choch_m5 == "BEAR_CHOCH":
 
         score_sell += 3
@@ -741,6 +750,7 @@ def smart_money_signal(
             "M5 CHOCH翻空"
         )
 
+    # Sweep
     if sweep == "SWEEP_HIGH":
 
         score_sell += 3
@@ -750,7 +760,7 @@ def smart_money_signal(
         )
 
     # =========================================
-    # SELL OB
+    # SELL ORDER BLOCK
     # =========================================
 
     if (
@@ -790,54 +800,87 @@ def smart_money_signal(
         )
 
     # =========================================
-    # HTF FILTER（放寬版）
+    # HTF FILTER（平衡版）
     # =========================================
 
+    # A+ 必須：
+    # H1 + M30 同向
+
+    strong_buy = (
+        trend_h1 == "BULL"
+        and structure_m30 == "BULL"
+    )
+
+    strong_sell = (
+        trend_h1 == "BEAR"
+        and structure_m30 == "BEAR"
+    )
+
+    # A / A-：
     # H1 或 M30 同向即可
-    # 不會像以前一直翻多翻空
-    # 也不會嚴格到整天沒訊號
 
-    allow_buy = (
-
+    weak_buy = (
         trend_h1 == "BULL"
         or structure_m30 == "BULL"
-
     )
 
-    allow_sell = (
-
+    weak_sell = (
         trend_h1 == "BEAR"
         or structure_m30 == "BEAR"
-
     )
 
     # =========================================
-    # BUY FILTER
+    # FILTER
     # =========================================
 
-    if not allow_buy:
+    if not weak_buy:
 
         score_buy = 0
 
         reasons_buy = []
 
-    # =========================================
-    # SELL FILTER
-    # =========================================
-
-    if not allow_sell:
+    if not weak_sell:
 
         score_sell = 0
 
         reasons_sell = []
 
     # =========================================
-    # GRADE
+    # BUY GRADE
     # =========================================
 
     buy_grade = get_grade(
         score_buy
     )
+
+    # 沒有 H1+M30 共振
+    # 不允許 A+
+
+    if (
+        buy_grade == "A+"
+        and not strong_buy
+    ):
+
+        buy_grade = "A"
+
+    # =========================================
+    # SELL GRADE
+    # =========================================
+
+    sell_grade = get_grade(
+        score_sell
+    )
+
+    if (
+        sell_grade == "A+"
+        and not strong_sell
+    ):
+
+        sell_grade = "A"
+
+    # =========================================
+    # BUY SIGNAL
+    # =========================================
 
     if buy_grade:
 
@@ -860,9 +903,9 @@ def smart_money_signal(
             "reasons": reasons_buy
         }
 
-    sell_grade = get_grade(
-        score_sell
-    )
+    # =========================================
+    # SELL SIGNAL
+    # =========================================
 
     if sell_grade:
 
@@ -884,14 +927,6 @@ def smart_money_signal(
 
             "reasons": reasons_sell
         }
-
-    # =========================================
-    # NO SIGNAL
-    # =========================================
-
-    return {
-        "type": "NO_SIGNAL"
-    }
 
     # =========================================
     # NO SIGNAL

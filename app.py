@@ -597,7 +597,9 @@ def smart_money_signal(
 
     trend_h1 = trend(h1)
 
-    structure_m30 = market_structure(m30)
+    structure_m30 = market_structure(
+        m30
+    )
 
     bos_m15 = detect_bos(m15)
 
@@ -612,6 +614,10 @@ def smart_money_signal(
     fvg = detect_fvg(m15)
 
     price = m1.iloc[-1]["close"]
+
+    ema20 = m15["close"].ewm(
+        span=20
+    ).mean().iloc[-1]
 
     # =========================================
     # BUY SCORE
@@ -639,7 +645,7 @@ def smart_money_signal(
             "M30 HH/HL"
         )
 
-    # M15 BOS
+    # BOS
     if bos_m15 == "BOS_UP":
 
         score_buy += 2
@@ -648,7 +654,7 @@ def smart_money_signal(
             "M15 BOS UP"
         )
 
-    # M5 CHOCH
+    # CHOCH
     if choch_m5 == "BULL_CHOCH":
 
         score_buy += 3
@@ -732,7 +738,7 @@ def smart_money_signal(
             "M30 LH/LL"
         )
 
-    # M15 BOS
+    # BOS
     if bos_m15 == "BOS_DOWN":
 
         score_sell += 2
@@ -741,7 +747,7 @@ def smart_money_signal(
             "M15 BOS DOWN"
         )
 
-    # M5 CHOCH
+    # CHOCH
     if choch_m5 == "BEAR_CHOCH":
 
         score_sell += 3
@@ -800,11 +806,8 @@ def smart_money_signal(
         )
 
     # =========================================
-    # HTF FILTER（平衡版）
+    # HTF FILTER
     # =========================================
-
-    # A+ 必須：
-    # H1 + M30 同向
 
     strong_buy = (
         trend_h1 == "BULL"
@@ -815,9 +818,6 @@ def smart_money_signal(
         trend_h1 == "BEAR"
         and structure_m30 == "BEAR"
     )
-
-    # A / A-：
-    # H1 或 M30 同向即可
 
     weak_buy = (
         trend_h1 == "BULL"
@@ -846,15 +846,34 @@ def smart_money_signal(
         reasons_sell = []
 
     # =========================================
+    # CONTINUATION SETUP
+    # =========================================
+
+    continuation_sell = (
+
+        trend_h1 == "BEAR"
+        and structure_m30 == "BEAR"
+        and bos_m15 == "BOS_DOWN"
+        and price < ema20
+
+    )
+
+    continuation_buy = (
+
+        trend_h1 == "BULL"
+        and structure_m30 == "BULL"
+        and bos_m15 == "BOS_UP"
+        and price > ema20
+
+    )
+
+    # =========================================
     # BUY GRADE
     # =========================================
 
     buy_grade = get_grade(
         score_buy
     )
-
-    # 沒有 H1+M30 共振
-    # 不允許 A+
 
     if (
         buy_grade == "A+"
@@ -879,7 +898,7 @@ def smart_money_signal(
         sell_grade = "A"
 
     # =========================================
-    # BUY SIGNAL
+    # REVERSAL BUY SIGNAL
     # =========================================
 
     if buy_grade:
@@ -889,6 +908,8 @@ def smart_money_signal(
             "type": "BUY",
 
             "grade": buy_grade,
+
+            "mode": "REVERSAL",
 
             "score": score_buy,
 
@@ -904,7 +925,7 @@ def smart_money_signal(
         }
 
     # =========================================
-    # SELL SIGNAL
+    # REVERSAL SELL SIGNAL
     # =========================================
 
     if sell_grade:
@@ -914,6 +935,8 @@ def smart_money_signal(
             "type": "SELL",
 
             "grade": sell_grade,
+
+            "mode": "REVERSAL",
 
             "score": score_sell,
 
@@ -926,6 +949,84 @@ def smart_money_signal(
             "tp2": round(price - 30, 2),
 
             "reasons": reasons_sell
+        }
+
+    # =========================================
+    # CONTINUATION SELL
+    # =========================================
+
+    if continuation_sell:
+
+        return {
+
+            "type": "SELL",
+
+            "grade": "A-",
+
+            "mode": "CONTINUATION",
+
+            "score": 7,
+
+            "entry": round(price, 2),
+
+            "sl": round(price + 6, 2),
+
+            "tp1": round(price - 10, 2),
+
+            "tp2": round(price - 20, 2),
+
+            "reasons": [
+
+                "空頭延續",
+
+                "M15 BOS DOWN",
+
+                "H1/M30 偏空",
+
+                "EMA20下方"
+            ],
+
+            "note":
+            "⚠️ continuation 小倉建議 0.01~0.02"
+        }
+
+    # =========================================
+    # CONTINUATION BUY
+    # =========================================
+
+    if continuation_buy:
+
+        return {
+
+            "type": "BUY",
+
+            "grade": "A-",
+
+            "mode": "CONTINUATION",
+
+            "score": 7,
+
+            "entry": round(price, 2),
+
+            "sl": round(price - 6, 2),
+
+            "tp1": round(price + 10, 2),
+
+            "tp2": round(price + 20, 2),
+
+            "reasons": [
+
+                "多頭延續",
+
+                "M15 BOS UP",
+
+                "H1/M30 偏多",
+
+                "EMA20上方"
+            ],
+
+            "note":
+            "⚠️ continuation 小倉建議 0.01~0.02"
         }
 
     # =========================================

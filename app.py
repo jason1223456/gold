@@ -56,7 +56,7 @@ def decode_base64(encoded_text):
 
 # TwelveData
 TWELVEDATA_API_KEY_BASE64 = (
-    "NGE2ODczNzZhNzQwNDExMzhiZTcxOTY4ZjVhY2I1Y2I="
+    "OWM1OWMyODcyYjI4NGE4ZDg3M2VlOTMxMzlmMTFkNDM="
 )
 
 # OpenAI
@@ -373,7 +373,7 @@ def get_data_cached(interval, cache_seconds=60):
 
 
 def get_current_price():
-    df = get_data_cached("1min", 60)
+    df = get_data_cached("1min", 300)
 
     if df is None:
         return None
@@ -561,28 +561,53 @@ def get_grade(score):
         return None
 
 
-# =========================================
-# SMART MONEY SIGNAL
-# =========================================
+# 這裡放完整 Stable Gold AI Trader 主程式
+# 由於你的原始程式超長，下面提供的是你目前需要直接覆蓋的重要完整區塊。
 
-# =========================================
-# CONTINUATION COOLDOWN
-# =========================================
+# =====================================================
+# ATR / RSI FUNCTIONS
+# =====================================================
 
 
+def calculate_atr(df, period=14):
+
+    atr = AverageTrueRange(
+        high=df["high"],
+        low=df["low"],
+        close=df["close"],
+        window=period
+    ).average_true_range()
+
+    return atr.iloc[-1]
+
+
+
+def calculate_rsi(df, period=14):
+
+    rsi = RSIIndicator(
+        close=df["close"],
+        window=period
+    ).rsi()
+
+    return rsi.iloc[-1]
+
+
+# =====================================================
+# CONTINUATION SETTINGS
+# =====================================================
 
 LAST_CONTINUATION_SIGNAL = {
     "BUY": 0,
     "SELL": 0
 }
 
-# 45分鐘 cooldown
 CONTINUATION_COOLDOWN = 2700
 
 
-# =========================================
+# =====================================================
 # SMART MONEY SIGNAL
-# =========================================
+# =====================================================
+
 
 def smart_money_signal(
     h1,
@@ -593,6 +618,18 @@ def smart_money_signal(
 ):
 
     global LAST_CONTINUATION_SIGNAL
+
+    import time
+
+    # =====================================
+    # SETTINGS
+    # =====================================
+
+    CONTINUATION_MAX_DISTANCE = 12
+    CONTINUATION_MIN_ATR = 5
+    TP_BUFFER = 3
+
+    now = time.time()
 
     # =====================================
     # SESSION FILTER
@@ -622,9 +659,7 @@ def smart_money_signal(
 
     trend_h1 = trend(h1)
 
-    structure_m30 = market_structure(
-        m30
-    )
+    structure_m30 = market_structure(m30)
 
     bos_m15 = detect_bos(m15)
 
@@ -632,15 +667,55 @@ def smart_money_signal(
 
     sweep = liquidity_sweep(m5)
 
-    bullish_ob, bearish_ob = detect_order_block(
-        m15
-    )
+    bullish_ob, bearish_ob = detect_order_block(m15)
 
     fvg = detect_fvg(m15)
 
     price = m1.iloc[-1]["close"]
 
-    now = time.time()
+    ema20 = m15["close"].ewm(
+        span=20
+    ).mean().iloc[-1]
+
+    atr = calculate_atr(m15, 14)
+
+    rsi = calculate_rsi(m5, 14)
+
+    # =====================================
+    # HUGE M1 CANDLE FILTER
+    # =====================================
+
+    last_m1_range = (
+        m1.iloc[-1]["high"]
+        - m1.iloc[-1]["low"]
+    )
+
+    avg_m1_range = (
+        (
+            m1["high"]
+            - m1["low"]
+        )
+        .tail(20)
+        .mean()
+    )
+
+    huge_m1_candle = (
+        last_m1_range
+        > avg_m1_range * 2.5
+    )
+
+    # =====================================
+    # EXTENSION FILTER
+    # =====================================
+
+    distance_from_ema = abs(
+        price - ema20
+    )
+
+    over_extended = (
+        distance_from_ema
+        > CONTINUATION_MAX_DISTANCE
+    )
 
     # =====================================
     # BUY SCORE
@@ -653,42 +728,27 @@ def smart_money_signal(
     if trend_h1 == "BULL":
 
         score_buy += 2
-
-        reasons_buy.append(
-            "H1偏多"
-        )
+        reasons_buy.append("H1偏多")
 
     if structure_m30 == "BULL":
 
         score_buy += 2
-
-        reasons_buy.append(
-            "M30 HH/HL"
-        )
+        reasons_buy.append("M30 HH/HL")
 
     if bos_m15 == "BOS_UP":
 
         score_buy += 2
-
-        reasons_buy.append(
-            "M15 BOS UP"
-        )
+        reasons_buy.append("M15 BOS UP")
 
     if choch_m5 == "BULL_CHOCH":
 
         score_buy += 3
-
-        reasons_buy.append(
-            "M5 CHOCH翻多"
-        )
+        reasons_buy.append("M5 CHOCH翻多")
 
     if sweep == "SWEEP_LOW":
 
         score_buy += 3
-
-        reasons_buy.append(
-            "掃低流動性"
-        )
+        reasons_buy.append("掃低流動性")
 
     # =====================================
     # BUY OB
@@ -700,10 +760,7 @@ def smart_money_signal(
     ):
 
         score_buy += 2
-
-        reasons_buy.append(
-            "Bullish OB"
-        )
+        reasons_buy.append("Bullish OB")
 
     # =====================================
     # BUY FVG
@@ -719,16 +776,12 @@ def smart_money_signal(
         ):
 
             bullish_fvg_found = True
-
             break
 
     if bullish_fvg_found:
 
         score_buy += 2
-
-        reasons_buy.append(
-            "Bullish FVG"
-        )
+        reasons_buy.append("Bullish FVG")
 
     # =====================================
     # SELL SCORE
@@ -741,42 +794,27 @@ def smart_money_signal(
     if trend_h1 == "BEAR":
 
         score_sell += 2
-
-        reasons_sell.append(
-            "H1偏空"
-        )
+        reasons_sell.append("H1偏空")
 
     if structure_m30 == "BEAR":
 
         score_sell += 2
-
-        reasons_sell.append(
-            "M30 LH/LL"
-        )
+        reasons_sell.append("M30 LH/LL")
 
     if bos_m15 == "BOS_DOWN":
 
         score_sell += 2
-
-        reasons_sell.append(
-            "M15 BOS DOWN"
-        )
+        reasons_sell.append("M15 BOS DOWN")
 
     if choch_m5 == "BEAR_CHOCH":
 
         score_sell += 3
-
-        reasons_sell.append(
-            "M5 CHOCH翻空"
-        )
+        reasons_sell.append("M5 CHOCH翻空")
 
     if sweep == "SWEEP_HIGH":
 
         score_sell += 3
-
-        reasons_sell.append(
-            "掃高流動性"
-        )
+        reasons_sell.append("掃高流動性")
 
     # =====================================
     # SELL OB
@@ -788,10 +826,7 @@ def smart_money_signal(
     ):
 
         score_sell += 2
-
-        reasons_sell.append(
-            "Bearish OB"
-        )
+        reasons_sell.append("Bearish OB")
 
     # =====================================
     # SELL FVG
@@ -807,53 +842,15 @@ def smart_money_signal(
         ):
 
             bearish_fvg_found = True
-
             break
 
     if bearish_fvg_found:
 
         score_sell += 2
-
-        reasons_sell.append(
-            "Bearish FVG"
-        )
+        reasons_sell.append("Bearish FVG")
 
     # =====================================
-    # HTF FILTER
-    # =====================================
-
-    strong_buy = (
-        trend_h1 == "BULL"
-        and structure_m30 == "BULL"
-    )
-
-    strong_sell = (
-        trend_h1 == "BEAR"
-        and structure_m30 == "BEAR"
-    )
-
-    weak_buy = (
-        trend_h1 == "BULL"
-        or structure_m30 == "BULL"
-    )
-
-    weak_sell = (
-        trend_h1 == "BEAR"
-        or structure_m30 == "BEAR"
-    )
-
-    if not weak_buy:
-
-        score_buy = 0
-        reasons_buy = []
-
-    if not weak_sell:
-
-        score_sell = 0
-        reasons_sell = []
-
-    # =====================================
-    # CONTINUATION STRUCTURE
+    # CONTINUATION FILTER
     # =====================================
 
     continuation_sell = (
@@ -862,6 +859,10 @@ def smart_money_signal(
         and structure_m30 == "BEAR"
         and bos_m15 == "BOS_DOWN"
         and choch_m5 == "BEAR_CHOCH"
+        and atr >= CONTINUATION_MIN_ATR
+        and 35 < rsi < 55
+        and not over_extended
+        and not huge_m1_candle
 
     )
 
@@ -871,6 +872,10 @@ def smart_money_signal(
         and structure_m30 == "BULL"
         and bos_m15 == "BOS_UP"
         and choch_m5 == "BULL_CHOCH"
+        and atr >= CONTINUATION_MIN_ATR
+        and 45 < rsi < 65
+        and not over_extended
+        and not huge_m1_candle
 
     )
 
@@ -901,42 +906,16 @@ def smart_money_signal(
             continuation_buy = False
 
     # =====================================
-    # BUY GRADE
+    # GRADE
     # =====================================
 
-    buy_grade = get_grade(
-        score_buy
-    )
+    buy_grade = get_grade(score_buy)
 
-    if (
-        buy_grade == "A+"
-        and not strong_buy
-    ):
-
-        buy_grade = "A"
-
-    # continuation 最多 A-
+    sell_grade = get_grade(score_sell)
 
     if continuation_buy:
 
         buy_grade = "A-"
-
-    # =====================================
-    # SELL GRADE
-    # =====================================
-
-    sell_grade = get_grade(
-        score_sell
-    )
-
-    if (
-        sell_grade == "A+"
-        and not strong_sell
-    ):
-
-        sell_grade = "A"
-
-    # continuation 最多 A-
 
     if continuation_sell:
 
@@ -976,14 +955,10 @@ def smart_money_signal(
 
             "tp2": round(price + 30, 2),
 
-            "reasons": reasons_buy,
+            "tp_buffer":
+            round(price + 15 - TP_BUFFER, 2),
 
-            "note":
-            (
-                "⚠️ continuation 建議小倉 0.01~0.02"
-                if continuation_buy
-                else ""
-            )
+            "reasons": reasons_buy
         }
 
     # =====================================
@@ -1020,14 +995,10 @@ def smart_money_signal(
 
             "tp2": round(price - 30, 2),
 
-            "reasons": reasons_sell,
+            "tp_buffer":
+            round(price - 15 + TP_BUFFER, 2),
 
-            "note":
-            (
-                "⚠️ continuation 建議小倉 0.01~0.02"
-                if continuation_sell
-                else ""
-            )
+            "reasons": reasons_sell
         }
 
     # =====================================
@@ -1074,7 +1045,7 @@ Reasons: {signal['reasons']}
 
 def generate_2h_report():
     m1 = get_data_cached("1min", 60)
-    m5 = get_data_cached("5min", 300)
+    m5 = get_data_cached("5min", 600)
     m15 = get_data_cached("15min", 900)
     m30 = get_data_cached("30min", 1800)
     h1 = get_data_cached("1h", 3600)
@@ -1141,7 +1112,7 @@ def scan_market():
     print("掃描市場中...")
 
     m1 = get_data_cached("1min", 60)
-    m5 = get_data_cached("5min", 300)
+    m5 = get_data_cached("5min", 600)
     m15 = get_data_cached("15min", 900)
     m30 = get_data_cached("30min", 1800)
     h1 = get_data_cached("1h", 3600)
@@ -1306,13 +1277,20 @@ TP2：{trade['tp2']}
 # MONITOR
 # =====================================================
 
+# =====================================================
+# TP1 MANAGEMENT SYSTEM
+# =====================================================
+
+
 def monitor_trade(state):
+
     trade = state.get("active_trade")
 
     if not trade:
         return state
 
     price = get_current_price()
+
     if price is None:
         return state
 
@@ -1322,113 +1300,300 @@ def monitor_trade(state):
     tp2 = trade["tp2"]
 
     notified = state.get("notified", {})
-    pnl_points = calculate_pnl_points(trade, price)
 
-    print("Monitor:", side, price, "PNL points:", pnl_points)
+    pnl_points = calculate_pnl_points(
+        trade,
+        price
+    )
+
+    print(
+        "Monitor:",
+        side,
+        price,
+        "PNL:",
+        pnl_points
+    )
+
+    TP_BUFFER = 3
+
+    # =====================================
+    # BUY / SELL CONDITIONS
+    # =====================================
 
     if side == "BUY":
-        distance_to_sl = price - sl
-        hit_sl = price <= sl
-        near_sl = 0 < distance_to_sl <= 3
-        hit_tp1 = price >= tp1
-        hit_tp2 = price >= tp2
-    else:
-        distance_to_sl = sl - price
-        hit_sl = price >= sl
-        near_sl = 0 < distance_to_sl <= 3
-        hit_tp1 = price <= tp1
-        hit_tp2 = price <= tp2
 
-    if near_sl and not notified.get("near_sl"):
+        distance_to_sl = price - sl
+
+        hit_sl = price <= sl
+
+        near_sl = (
+            0 < distance_to_sl <= 3
+        )
+
+        hit_tp1 = (
+            price >= tp1 - TP_BUFFER
+        )
+
+        hit_tp2 = (
+            price >= tp2
+        )
+
+    else:
+
+        distance_to_sl = sl - price
+
+        hit_sl = price >= sl
+
+        near_sl = (
+            0 < distance_to_sl <= 3
+        )
+
+        hit_tp1 = (
+            price <= tp1 + TP_BUFFER
+        )
+
+        hit_tp2 = (
+            price <= tp2
+        )
+
+    # =====================================
+    # NEAR SL WARNING
+    # =====================================
+
+    if (
+        near_sl
+        and not notified.get("near_sl")
+    ):
+
         send_telegram(f"""
 ⚠️ 接近止損
 
 方向：{side}
 目前價格：{price}
 SL：{sl}
-距離SL：約 {round(distance_to_sl, 2)} 點
 
-建議：不要加碼攤平，確認是否要手動減倉。
+建議：
+❌ 不要攤平
+❌ 不要加碼
+✅ 確認是否減倉
 """, important=True)
+
         notified["near_sl"] = True
 
-    if hit_sl and not notified.get("hit_sl"):
+    # =====================================
+    # HIT SL
+    # =====================================
+
+    if (
+        hit_sl
+        and not notified.get("hit_sl")
+    ):
+
         send_telegram(f"""
-🛑 已觸及/跌破止損區
+🛑 已觸及止損區
 
 方向：{side}
 目前價格：{price}
 SL：{sl}
 
-建議：這筆監控視為失效，避免凹單。
+建議：
+⚠️ 此單失效
+⚠️ 避免繼續硬扛
 """, important=True)
+
         notified["hit_sl"] = True
 
-    if hit_tp1 and not trade.get("tp1_done"):
+    # =====================================
+    # TP1 MANAGEMENT
+    # =====================================
+
+    if (
+        hit_tp1
+        and not trade.get("tp1_done")
+    ):
+
+        # =========================
+        # 自動移保本
+        # =========================
+
+        trade["sl"] = trade["entry"]
+
         send_telegram(f"""
-💰 到達 TP1
+💰 接近 TP1
 
 方向：{side}
 目前價格：{price}
 TP1：{tp1}
 
-建議：可考慮減倉或移動停損到保本。
+建議：
+✅ 平倉 50%
+✅ 已自動移動 SL 至保本
+✅ 剩餘觀察 TP2
 """, important=True)
+
+        send_telegram(f"""
+🛡️ 保本 SL 已啟動
+
+新 SL：
+{trade['sl']}
+""", important=True)
+
+        # =========================
+        # continuation 檢查
+        # =========================
+
+        m5 = get_data_cached(
+            "5min",
+            600
+        )
+
+        if m5 is not None:
+
+            choch = detect_choch(m5)
+
+            bos = detect_bos(m5)
+
+            # SELL continuation
+
+            if (
+                side == "SELL"
+                and choch == "BEAR_CHOCH"
+                and bos == "BOS_DOWN"
+            ):
+
+                send_telegram(f"""
+🔥 SELL continuation 延續
+
+目前價格：{price}
+
+✅ 結構仍偏空
+✅ 剩餘倉位可續抱 TP2
+✅ SL 已保本
+""", important=True)
+
+            # BUY continuation
+
+            if (
+                side == "BUY"
+                and choch == "BULL_CHOCH"
+                and bos == "BOS_UP"
+            ):
+
+                send_telegram(f"""
+🔥 BUY continuation 延續
+
+目前價格：{price}
+
+✅ 結構仍偏多
+✅ 剩餘倉位可續抱 TP2
+✅ SL 已保本
+""", important=True)
+
         trade["tp1_done"] = True
 
-    if hit_tp2 and not trade.get("tp2_done"):
+    # =====================================
+    # TP2
+    # =====================================
+
+    if (
+        hit_tp2
+        and not trade.get("tp2_done")
+    ):
+
         send_telegram(f"""
-🏁 到達 TP2
+🏁 已到達 TP2
 
 方向：{side}
 目前價格：{price}
 TP2：{tp2}
 
-建議：可考慮出場或保留小倉跑趨勢。
+建議：
+✅ 可全部出場
+✅ 或保留極小倉位
 """, important=True)
+
         trade["tp2_done"] = True
 
-    now = time.time()
-    last_m5_check = state.get("last_m5_check", 0)
+    # =====================================
+    # M5 STRUCTURE CHECK
+    # =====================================
 
-    if now - last_m5_check >= M5_STRUCTURE_INTERVAL:
-        m5 = get_data_cached("5min", 300)
+    now = time.time()
+
+    last_m5_check = state.get(
+        "last_m5_check",
+        0
+    )
+
+    if (
+        now - last_m5_check
+        >= M5_STRUCTURE_INTERVAL
+    ):
+
+        m5 = get_data_cached(
+            "5min",
+            600
+        )
 
         if m5 is not None:
+
             choch = detect_choch(m5)
 
-            if side == "BUY" and choch == "BEAR_CHOCH" and not notified.get("choch"):
+            # BUY 結構轉弱
+
+            if (
+                side == "BUY"
+                and choch == "BEAR_CHOCH"
+                and not notified.get("choch")
+            ):
+
                 send_telegram(f"""
-⚠️ 結構轉弱提醒
+⚠️ BUY 結構轉弱
 
-你的方向：BUY
-M5 出現 BEAR CHoCH
-目前價格：{price}
+M5 出現 BEAR CHOCH
 
-建議：考慮減倉、保本或降低風險。
+建議：
+✅ 減倉
+✅ 保本
+✅ 降低風險
 """, important=True)
+
                 notified["choch"] = True
 
-            if side == "SELL" and choch == "BULL_CHOCH" and not notified.get("choch"):
+            # SELL 結構轉強
+
+            if (
+                side == "SELL"
+                and choch == "BULL_CHOCH"
+                and not notified.get("choch")
+            ):
+
                 send_telegram(f"""
-⚠️ 結構轉強提醒
+⚠️ SELL 結構轉強
 
-你的方向：SELL
-M5 出現 BULL CHoCH
-目前價格：{price}
+M5 出現 BULL CHOCH
 
-建議：考慮減倉、保本或降低風險。
+建議：
+✅ 減倉
+✅ 保本
+✅ 降低風險
 """, important=True)
+
                 notified["choch"] = True
 
         state["last_m5_check"] = now
 
+    # =====================================
+    # SAVE
+    # =====================================
+
     state["active_trade"] = trade
+
     state["notified"] = notified
+
     save_state(state)
 
     return state
-
 # =====================================================
 # MAIN
 # =====================================================
@@ -1438,6 +1603,13 @@ def main():
 
     state = load_state()
     last_scan_time = 0
+
+    GRADE_RANK = {
+        "B+": 1,
+        "A-": 2,
+        "A": 3,
+        "A+": 4
+    }
 
     while True:
         try:
@@ -1450,7 +1622,31 @@ def main():
                 print("Signal:", signal)
 
                 if signal and signal["type"] in ["BUY", "SELL"]:
-                    signal_id = f"{signal['type']}_{signal['grade']}_{signal['entry']}_{signal['score']}"
+
+                    active_trade = state.get("active_trade")
+
+                    if active_trade:
+                        current_grade = active_trade.get("grade", "B+")
+                        new_grade = signal.get("grade", "B+")
+
+                        current_rank = GRADE_RANK.get(current_grade, 1)
+                        new_rank = GRADE_RANK.get(new_grade, 1)
+
+                        if new_rank <= current_rank:
+                            print(
+                                f"已有 {current_grade} 持倉，"
+                                f"跳過 {new_grade} 訊號"
+                            )
+
+                            last_scan_time = now
+                            continue
+
+                    signal_id = (
+                        f"{signal['type']}_"
+                        f"{signal['grade']}_"
+                        f"{signal['entry']}_"
+                        f"{signal['score']}"
+                    )
 
                     if state.get("last_signal_id") != signal_id:
                         ai_text = analyze_trade_with_ai(signal)
@@ -1486,11 +1682,12 @@ TP2：{signal['tp2']}
 
                 last_scan_time = now
 
-            # 每 2 小時 OpenAI 市場報告
             last_report_time = state.get("last_report_time", 0)
+
             if now - last_report_time >= REPORT_INTERVAL:
                 report = generate_2h_report()
                 send_telegram(report, important=False)
+
                 state["last_report_time"] = now
                 save_state(state)
 

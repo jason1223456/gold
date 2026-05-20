@@ -1655,6 +1655,7 @@ def main():
 🔥 {signal['grade']}級訊號｜XAUUSD
 
 方向：{signal['type']}
+模式：{signal['mode']}
 Grade：{signal['grade']}
 Score：{signal['score']}
 

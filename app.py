@@ -1133,146 +1133,376 @@ def calculate_pnl_points(trade, price):
 
 
 def handle_telegram_commands(state):
-    updates = get_updates(state.get("telegram_offset"))
+
+    updates = get_updates(
+        state.get("telegram_offset")
+    )
 
     if not updates.get("ok"):
         return state
 
     for item in updates.get("result", []):
-        state["telegram_offset"] = item["update_id"] + 1
 
-        text = item.get("message", {}).get("text", "").strip()
+        state["telegram_offset"] = (
+            item["update_id"] + 1
+        )
+
+        text = (
+            item.get("message", {})
+            .get("text", "")
+            .strip()
+        )
+
         if not text:
             continue
 
         parts = text.split()
+
         command = parts[0].lower()
 
+        # =====================================
+        # OPEN
+        # =====================================
+
         if command == "/open":
+
             if len(parts) < 4:
-                send_telegram("格式：/open BUY 4685 0.05")
+
+                send_telegram(
+                    "格式：/open BUY 4685 0.05"
+                )
+
                 continue
 
             side = parts[1].upper()
+
             entry = float(parts[2])
+
             lot = float(parts[3])
 
             if side == "BUY":
+
                 sl = entry - 8
                 tp1 = entry + 15
                 tp2 = entry + 30
+
             else:
+
                 sl = entry + 8
                 tp1 = entry - 15
                 tp2 = entry - 30
 
-            last_signal = state.get("last_signal")
+            last_signal = state.get(
+                "last_signal"
+            )
+
             grade = "manual"
+
             score = 0
 
-            if last_signal and last_signal.get("type") == side:
-                grade = last_signal.get("grade", "manual")
-                score = last_signal.get("score", 0)
+            if (
+                last_signal
+                and last_signal.get("type") == side
+            ):
+
+                grade = last_signal.get(
+                    "grade",
+                    "manual"
+                )
+
+                score = last_signal.get(
+                    "score",
+                    0
+                )
 
             state["active_trade"] = {
+
                 "side": side,
+
                 "entry": entry,
+
                 "lot": lot,
+
                 "sl": sl,
+
                 "tp1": tp1,
+
                 "tp2": tp2,
+
                 "grade": grade,
+
                 "score": score,
+
                 "tp1_done": False,
+
                 "tp2_done": False,
-                "created_at": str(pd.Timestamp.utcnow())
+
+                "created_at":
+                str(pd.Timestamp.utcnow())
             }
 
             state["notified"] = {}
+
             save_state(state)
 
             send_telegram(f"""
 ✅ 已記錄持倉
 
 方向：{side}
+
 Entry：{entry}
+
 Lot：{lot}
+
 SL：{sl}
+
 TP1：{tp1}
+
 TP2：{tp2}
 
 系統開始監控。
 """)
 
+        # =====================================
+        # CLOSE
+        # =====================================
+
         elif command == "/close":
-            trade = state.get("active_trade")
+
+            trade = state.get(
+                "active_trade"
+            )
 
             if not trade:
-                send_telegram("目前沒有持倉")
+
+                send_telegram(
+                    "目前沒有持倉"
+                )
+
                 continue
 
             if len(parts) >= 2:
+
                 exit_price = float(parts[1])
+
             else:
+
                 price = get_current_price()
+
                 if price is None:
-                    send_telegram("抓不到目前價格，請用：/close 平倉價")
+
+                    send_telegram(
+                        "抓不到目前價格"
+                    )
+
                     continue
+
                 exit_price = price
 
-            pnl_points = calculate_pnl_points(trade, exit_price)
-            result = "WIN" if pnl_points > 0 else "LOSS"
+            pnl_points = calculate_pnl_points(
+                trade,
+                exit_price
+            )
 
-            save_trade_to_supabase(trade, exit_price, pnl_points, result)
+            result = (
+                "WIN"
+                if pnl_points > 0
+                else "LOSS"
+            )
+
+            save_trade_to_supabase(
+                trade,
+                exit_price,
+                pnl_points,
+                result
+            )
 
             send_telegram(f"""
 ✅ 已平倉並記錄
 
 方向：{trade['side']}
+
 Entry：{trade['entry']}
+
 Exit：{exit_price}
+
 Lot：{trade['lot']}
 
 PnL：{round(pnl_points, 2)}
+
 結果：{result}
 """)
 
             state["active_trade"] = None
+
             state["notified"] = {}
+
             save_state(state)
 
+        # =====================================
+        # STATUS
+        # =====================================
+
         elif command == "/status":
-            trade = state.get("active_trade")
+
+            trade = state.get(
+                "active_trade"
+            )
 
             if not trade:
-                send_telegram("目前沒有持倉")
+
+                send_telegram(
+                    "目前沒有持倉"
+                )
+
                 continue
 
             price = get_current_price()
-            pnl = calculate_pnl_points(trade, price)
+
+            pnl = calculate_pnl_points(
+                trade,
+                price
+            )
 
             send_telegram(f"""
 📊 持倉狀態
 
 方向：{trade['side']}
+
 Entry：{trade['entry']}
+
 目前價格：{price}
+
 浮動點數：{round(pnl, 2)}
 
 SL：{trade['sl']}
+
 TP1：{trade['tp1']}
+
 TP2：{trade['tp2']}
 """)
 
+        # =====================================
+        # STATS
+        # =====================================
+
         elif command == "/stats":
-            send_telegram(get_trade_stats())
+
+            send_telegram(
+                get_trade_stats()
+            )
+
+        # =====================================
+        # REPORT
+        # =====================================
 
         elif command == "/report":
-            send_telegram(generate_2h_report(), important=True)
+
+            send_telegram(
+                generate_2h_report(),
+                important=True
+            )
+
+        # =====================================
+        # DEBUG
+        # =====================================
+
+        elif command == "/debug":
+
+            m1 = get_data_cached(
+                "1min",
+                60
+            )
+
+            m5 = get_data_cached(
+                "5min",
+                600
+            )
+
+            m15 = get_data_cached(
+                "15min",
+                900
+            )
+
+            m30 = get_data_cached(
+                "30min",
+                1800
+            )
+
+            h1 = get_data_cached(
+                "1h",
+                3600
+            )
+
+            if any(
+                df is None
+                for df in [m1, m5, m15, m30, h1]
+            ):
+
+                send_telegram(
+                    "❌ 資料不足"
+                )
+
+                continue
+
+            h1_trend = trend(h1)
+
+            m30_structure = market_structure(
+                m30
+            )
+
+            m15_bos = detect_bos(m15)
+
+            m5_choch = detect_choch(m5)
+
+            m5_sweep = liquidity_sweep(m5)
+
+            current_price = m1.iloc[-1]["close"]
+
+            current_rsi = round(
+                m5.iloc[-1]["RSI"],
+                2
+            )
+
+            signal = smart_money_signal(
+                h1,
+                m30,
+                m15,
+                m5,
+                m1
+            )
+
+            send_telegram(f"""
+📊 DEBUG REPORT
+
+Price：
+{current_price}
+
+H1 Trend：
+{h1_trend}
+
+M30 Structure：
+{m30_structure}
+
+M15 BOS：
+{m15_bos}
+
+M5 CHOCH：
+{m5_choch}
+
+M5 Sweep：
+{m5_sweep}
+
+M5 RSI：
+{current_rsi}
+
+Signal：
+{signal}
+""")
 
     save_state(state)
-    return state
 
+    return state
 # =====================================================
 # MONITOR
 # =====================================================

@@ -632,28 +632,6 @@ def smart_money_signal(
     now = time.time()
 
     # =====================================
-    # SESSION FILTER
-    # =====================================
-
-    if not valid_session():
-
-        return {
-            "type": "NO_TRADE",
-            "reason": "低流動性時段"
-        }
-
-    # =====================================
-    # HIGH VOLATILITY FILTER
-    # =====================================
-
-    if high_volatility(m1):
-
-        return {
-            "type": "NO_TRADE",
-            "reason": "高波動消息盤"
-        }
-
-    # =====================================
     # ANALYSIS
     # =====================================
 
@@ -673,49 +651,42 @@ def smart_money_signal(
 
     price = m1.iloc[-1]["close"]
 
-    ema20 = m15["close"].ewm(
-        span=20
-    ).mean().iloc[-1]
+    ema20 = m15["close"].ewm(span=20).mean().iloc[-1]
 
     atr = calculate_atr(m15, 14)
 
     rsi = calculate_rsi(m5, 14)
 
     # =====================================
-    # HUGE M1 CANDLE FILTER
+    # OVER EXTENDED FILTER
     # =====================================
 
-    last_m1_range = (
-        m1.iloc[-1]["high"]
-        - m1.iloc[-1]["low"]
-    )
-
-    avg_m1_range = (
-        (
-            m1["high"]
-            - m1["low"]
-        )
-        .tail(20)
-        .mean()
-    )
-
-    huge_m1_candle = (
-        last_m1_range
-        > avg_m1_range * 2.5
-    )
-
-    # =====================================
-    # EXTENSION FILTER
-    # =====================================
-
-    distance_from_ema = abs(
-        price - ema20
-    )
+    distance_from_ema = abs(price - ema20)
 
     over_extended = (
         distance_from_ema
         > CONTINUATION_MAX_DISTANCE
     )
+
+    # =====================================
+    # OVER PUSH FILTER
+    # 避免暴漲暴跌追單
+    # =====================================
+
+    last_5 = m1.tail(5)
+
+    bearish_count = sum(
+        candle["close"] < candle["open"]
+        for _, candle in last_5.iterrows()
+    )
+
+    bullish_count = sum(
+        candle["close"] > candle["open"]
+        for _, candle in last_5.iterrows()
+    )
+
+    too_many_red = bearish_count >= 4
+    too_many_green = bullish_count >= 4
 
     # =====================================
     # BUY SCORE
@@ -740,15 +711,20 @@ def smart_money_signal(
         score_buy += 2
         reasons_buy.append("M15 BOS UP")
 
-    if choch_m5 == "BULL_CHOCH":
+    # =====================================
+    # BUY CHOCH + SWEEP CONFIRMATION
+    # =====================================
+
+    if (
+        choch_m5 == "BULL_CHOCH"
+        and sweep == "SWEEP_LOW"
+    ):
 
         score_buy += 3
-        reasons_buy.append("M5 CHOCH翻多")
 
-    if sweep == "SWEEP_LOW":
-
-        score_buy += 3
-        reasons_buy.append("掃低流動性")
+        reasons_buy.append(
+            "M5 CHOCH翻多 + 掃低流動性"
+        )
 
     # =====================================
     # BUY OB
@@ -806,15 +782,20 @@ def smart_money_signal(
         score_sell += 2
         reasons_sell.append("M15 BOS DOWN")
 
-    if choch_m5 == "BEAR_CHOCH":
+    # =====================================
+    # SELL CHOCH + SWEEP CONFIRMATION
+    # =====================================
+
+    if (
+        choch_m5 == "BEAR_CHOCH"
+        and sweep == "SWEEP_HIGH"
+    ):
 
         score_sell += 3
-        reasons_sell.append("M5 CHOCH翻空")
 
-    if sweep == "SWEEP_HIGH":
-
-        score_sell += 3
-        reasons_sell.append("掃高流動性")
+        reasons_sell.append(
+            "M5 CHOCH翻空 + 掃高流動性"
+        )
 
     # =====================================
     # SELL OB
@@ -854,29 +835,31 @@ def smart_money_signal(
     # =====================================
 
     continuation_sell = (
-
         trend_h1 == "BEAR"
         and structure_m30 == "BEAR"
         and bos_m15 == "BOS_DOWN"
-        and choch_m5 == "BEAR_CHOCH"
+        and (
+            choch_m5 == "BEAR_CHOCH"
+            or bos_m15 == "BOS_DOWN"
+        )
         and atr >= CONTINUATION_MIN_ATR
         and 35 < rsi < 55
         and not over_extended
-        and not huge_m1_candle
-
+        and not too_many_red
     )
 
     continuation_buy = (
-
         trend_h1 == "BULL"
         and structure_m30 == "BULL"
         and bos_m15 == "BOS_UP"
-        and choch_m5 == "BULL_CHOCH"
+        and (
+            choch_m5 == "BULL_CHOCH"
+            or bos_m15 == "BOS_UP"
+        )
         and atr >= CONTINUATION_MIN_ATR
         and 45 < rsi < 65
         and not over_extended
-        and not huge_m1_candle
-
+        and not too_many_green
     )
 
     # =====================================
@@ -913,6 +896,8 @@ def smart_money_signal(
 
     sell_grade = get_grade(score_sell)
 
+    # continuation 最多 A-
+
     if continuation_buy:
 
         buy_grade = "A-"
@@ -933,9 +918,7 @@ def smart_money_signal(
 
             signal_mode = "CONTINUATION"
 
-            LAST_CONTINUATION_SIGNAL[
-                "BUY"
-            ] = now
+            LAST_CONTINUATION_SIGNAL["BUY"] = now
 
         return {
 
@@ -973,9 +956,7 @@ def smart_money_signal(
 
             signal_mode = "CONTINUATION"
 
-            LAST_CONTINUATION_SIGNAL[
-                "SELL"
-            ] = now
+            LAST_CONTINUATION_SIGNAL["SELL"] = now
 
         return {
 

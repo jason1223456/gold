@@ -621,19 +621,11 @@ def smart_money_signal(
 
     import time
 
-    # =====================================
-    # SETTINGS
-    # =====================================
-
     CONTINUATION_MAX_DISTANCE = 12
     CONTINUATION_MIN_ATR = 5
     TP_BUFFER = 3
 
     now = time.time()
-
-    # =====================================
-    # ANALYSIS
-    # =====================================
 
     trend_h1 = trend(h1)
 
@@ -657,10 +649,6 @@ def smart_money_signal(
 
     rsi = calculate_rsi(m5, 14)
 
-    # =====================================
-    # OVER EXTENDED FILTER
-    # =====================================
-
     distance_from_ema = abs(price - ema20)
 
     over_extended = (
@@ -668,180 +656,139 @@ def smart_money_signal(
         > CONTINUATION_MAX_DISTANCE
     )
 
-    # =====================================
-    # OVER PUSH FILTER
-    # 避免暴漲暴跌追單
-    # =====================================
+    # =====================================================
+    # 避免追高追低
+    # =====================================================
 
-    last_5 = m1.tail(5)
+    recent_m1 = m1.tail(6)
 
-    bearish_count = sum(
-        candle["close"] < candle["open"]
-        for _, candle in last_5.iterrows()
+    red_count = sum(
+        recent_m1["close"] < recent_m1["open"]
     )
 
-    bullish_count = sum(
-        candle["close"] > candle["open"]
-        for _, candle in last_5.iterrows()
+    green_count = sum(
+        recent_m1["close"] > recent_m1["open"]
     )
 
-    too_many_red = bearish_count >= 4
-    too_many_green = bullish_count >= 4
+    too_many_red = red_count >= 5
+    too_many_green = green_count >= 5
 
-    # =====================================
+    # =====================================================
+    # 大位移過濾
+    # =====================================================
+
+    m30_last = m30.iloc[-1]
+
+    body_size = abs(
+        m30_last["close"]
+        - m30_last["open"]
+    )
+
+    atr_m30 = calculate_atr(m30, 14)
+
+    strong_displacement = (
+        body_size > atr_m30 * 1.5
+    )
+
+    # =====================================================
     # BUY SCORE
-    # =====================================
+    # =====================================================
 
     score_buy = 0
-
     reasons_buy = []
 
     if trend_h1 == "BULL":
-
         score_buy += 2
         reasons_buy.append("H1偏多")
 
     if structure_m30 == "BULL":
-
         score_buy += 2
         reasons_buy.append("M30 HH/HL")
 
     if bos_m15 == "BOS_UP":
-
         score_buy += 2
         reasons_buy.append("M15 BOS UP")
 
-    # =====================================
-    # BUY CHOCH + SWEEP CONFIRMATION
-    # =====================================
-
-    if (
-        choch_m5 == "BULL_CHOCH"
-        and sweep == "SWEEP_LOW"
-    ):
-
+    if choch_m5 == "BULL_CHOCH":
         score_buy += 3
+        reasons_buy.append("M5 CHOCH翻多")
 
-        reasons_buy.append(
-            "M5 CHOCH翻多 + 掃低流動性"
-        )
+    if sweep == "SWEEP_LOW":
+        score_buy += 3
+        reasons_buy.append("掃低流動性")
 
-    # =====================================
-    # BUY OB
-    # =====================================
-
-    if (
-        bullish_ob
-        and price <= bullish_ob + 5
-    ):
-
+    if bullish_ob and price <= bullish_ob + 5:
         score_buy += 2
         reasons_buy.append("Bullish OB")
-
-    # =====================================
-    # BUY FVG
-    # =====================================
 
     bullish_fvg_found = False
 
     for zone in fvg:
-
         if (
             zone["type"] == "BULLISH"
             and zone["low"] <= price <= zone["high"]
         ):
-
             bullish_fvg_found = True
             break
 
     if bullish_fvg_found:
-
         score_buy += 2
         reasons_buy.append("Bullish FVG")
 
-    # =====================================
+    # =====================================================
     # SELL SCORE
-    # =====================================
+    # =====================================================
 
     score_sell = 0
-
     reasons_sell = []
 
     if trend_h1 == "BEAR":
-
         score_sell += 2
         reasons_sell.append("H1偏空")
 
     if structure_m30 == "BEAR":
-
         score_sell += 2
         reasons_sell.append("M30 LH/LL")
 
     if bos_m15 == "BOS_DOWN":
-
         score_sell += 2
         reasons_sell.append("M15 BOS DOWN")
 
-    # =====================================
-    # SELL CHOCH + SWEEP CONFIRMATION
-    # =====================================
-
-    if (
-        choch_m5 == "BEAR_CHOCH"
-        and sweep == "SWEEP_HIGH"
-    ):
-
+    if choch_m5 == "BEAR_CHOCH":
         score_sell += 3
+        reasons_sell.append("M5 CHOCH翻空")
 
-        reasons_sell.append(
-            "M5 CHOCH翻空 + 掃高流動性"
-        )
+    if sweep == "SWEEP_HIGH":
+        score_sell += 3
+        reasons_sell.append("掃高流動性")
 
-    # =====================================
-    # SELL OB
-    # =====================================
-
-    if (
-        bearish_ob
-        and price >= bearish_ob - 5
-    ):
-
+    if bearish_ob and price >= bearish_ob - 5:
         score_sell += 2
         reasons_sell.append("Bearish OB")
-
-    # =====================================
-    # SELL FVG
-    # =====================================
 
     bearish_fvg_found = False
 
     for zone in fvg:
-
         if (
             zone["type"] == "BEARISH"
             and zone["low"] <= price <= zone["high"]
         ):
-
             bearish_fvg_found = True
             break
 
     if bearish_fvg_found:
-
         score_sell += 2
         reasons_sell.append("Bearish FVG")
 
-    # =====================================
-    # CONTINUATION FILTER
-    # =====================================
+    # =====================================================
+    # CONTINUATION
+    # =====================================================
 
     continuation_sell = (
         trend_h1 == "BEAR"
         and structure_m30 == "BEAR"
         and bos_m15 == "BOS_DOWN"
-        and (
-            choch_m5 == "BEAR_CHOCH"
-            or bos_m15 == "BOS_DOWN"
-        )
+        and choch_m5 == "BEAR_CHOCH"
         and atr >= CONTINUATION_MIN_ATR
         and 35 < rsi < 55
         and not over_extended
@@ -852,19 +799,36 @@ def smart_money_signal(
         trend_h1 == "BULL"
         and structure_m30 == "BULL"
         and bos_m15 == "BOS_UP"
-        and (
-            choch_m5 == "BULL_CHOCH"
-            or bos_m15 == "BOS_UP"
-        )
+        and choch_m5 == "BULL_CHOCH"
         and atr >= CONTINUATION_MIN_ATR
         and 45 < rsi < 65
         and not over_extended
         and not too_many_green
     )
 
-    # =====================================
-    # CONTINUATION COOLDOWN
-    # =====================================
+    # =====================================================
+    # REVERSAL FILTER
+    # =====================================================
+
+    valid_buy_reversal = (
+        (
+            sweep == "SWEEP_LOW"
+            or choch_m5 == "BULL_CHOCH"
+        )
+        and not strong_displacement
+    )
+
+    valid_sell_reversal = (
+        (
+            sweep == "SWEEP_HIGH"
+            or choch_m5 == "BEAR_CHOCH"
+        )
+        and not strong_displacement
+    )
+
+    # =====================================================
+    # COOLDOWN
+    # =====================================================
 
     if continuation_sell:
 
@@ -874,7 +838,6 @@ def smart_money_signal(
         )
 
         if elapsed < CONTINUATION_COOLDOWN:
-
             continuation_sell = False
 
     if continuation_buy:
@@ -885,106 +848,86 @@ def smart_money_signal(
         )
 
         if elapsed < CONTINUATION_COOLDOWN:
-
             continuation_buy = False
 
-    # =====================================
+    # =====================================================
     # GRADE
-    # =====================================
+    # =====================================================
 
     buy_grade = get_grade(score_buy)
-
     sell_grade = get_grade(score_sell)
 
-    # continuation 最多 A-
-
     if continuation_buy:
-
         buy_grade = "A-"
 
     if continuation_sell:
-
         sell_grade = "A-"
 
-    # =====================================
+    # =====================================================
     # BUY SIGNAL
-    # =====================================
+    # =====================================================
 
     if buy_grade:
 
         signal_mode = "REVERSAL"
 
         if continuation_buy:
-
             signal_mode = "CONTINUATION"
 
-            LAST_CONTINUATION_SIGNAL["BUY"] = now
+        else:
+            if not valid_buy_reversal:
+                buy_grade = None
 
-        return {
+        if buy_grade:
 
-            "type": "BUY",
+            if continuation_buy:
+                LAST_CONTINUATION_SIGNAL["BUY"] = now
 
-            "mode": signal_mode,
+            return {
+                "type": "BUY",
+                "mode": signal_mode,
+                "grade": buy_grade,
+                "score": score_buy,
+                "entry": round(price, 2),
+                "sl": round(price - 8, 2),
+                "tp1": round(price + 15, 2),
+                "tp2": round(price + 30, 2),
+                "tp_buffer": round(price + 15 - TP_BUFFER, 2),
+                "reasons": reasons_buy
+            }
 
-            "grade": buy_grade,
-
-            "score": score_buy,
-
-            "entry": round(price, 2),
-
-            "sl": round(price - 8, 2),
-
-            "tp1": round(price + 15, 2),
-
-            "tp2": round(price + 30, 2),
-
-            "tp_buffer":
-            round(price + 15 - TP_BUFFER, 2),
-
-            "reasons": reasons_buy
-        }
-
-    # =====================================
+    # =====================================================
     # SELL SIGNAL
-    # =====================================
+    # =====================================================
 
     if sell_grade:
 
         signal_mode = "REVERSAL"
 
         if continuation_sell:
-
             signal_mode = "CONTINUATION"
 
-            LAST_CONTINUATION_SIGNAL["SELL"] = now
+        else:
+            if not valid_sell_reversal:
+                sell_grade = None
 
-        return {
+        if sell_grade:
 
-            "type": "SELL",
+            if continuation_sell:
+                LAST_CONTINUATION_SIGNAL["SELL"] = now
 
-            "mode": signal_mode,
-
-            "grade": sell_grade,
-
-            "score": score_sell,
-
-            "entry": round(price, 2),
-
-            "sl": round(price + 8, 2),
-
-            "tp1": round(price - 15, 2),
-
-            "tp2": round(price - 30, 2),
-
-            "tp_buffer":
-            round(price - 15 + TP_BUFFER, 2),
-
-            "reasons": reasons_sell
-        }
-
-    # =====================================
-    # NO SIGNAL
-    # =====================================
+            return {
+                "type": "SELL",
+                "mode": signal_mode,
+                "grade": sell_grade,
+                "score": score_sell,
+                "entry": round(price, 2),
+                "sl": round(price + 8, 2),
+                "tp1": round(price - 15, 2),
+                "tp2": round(price - 30, 2),
+                "tp_buffer": round(price - 15 + TP_BUFFER, 2),
+                "reasons": reasons_sell
+            }
 
     return {
         "type": "NO_SIGNAL"

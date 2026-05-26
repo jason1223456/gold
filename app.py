@@ -627,6 +627,10 @@ def smart_money_signal(
 
     now = time.time()
 
+    # =====================================================
+    # 基本資料
+    # =====================================================
+
     trend_h1 = trend(h1)
 
     structure_m30 = market_structure(m30)
@@ -671,6 +675,7 @@ def smart_money_signal(
     )
 
     too_many_red = red_count >= 5
+
     too_many_green = green_count >= 5
 
     # =====================================================
@@ -695,6 +700,7 @@ def smart_money_signal(
     # =====================================================
 
     score_buy = 0
+
     reasons_buy = []
 
     if trend_h1 == "BULL":
@@ -724,10 +730,12 @@ def smart_money_signal(
     bullish_fvg_found = False
 
     for zone in fvg:
+
         if (
             zone["type"] == "BULLISH"
             and zone["low"] <= price <= zone["high"]
         ):
+
             bullish_fvg_found = True
             break
 
@@ -740,6 +748,7 @@ def smart_money_signal(
     # =====================================================
 
     score_sell = 0
+
     reasons_sell = []
 
     if trend_h1 == "BEAR":
@@ -769,10 +778,12 @@ def smart_money_signal(
     bearish_fvg_found = False
 
     for zone in fvg:
+
         if (
             zone["type"] == "BEARISH"
             and zone["low"] <= price <= zone["high"]
         ):
+
             bearish_fvg_found = True
             break
 
@@ -785,24 +796,40 @@ def smart_money_signal(
     # =====================================================
 
     continuation_sell = (
+
         trend_h1 == "BEAR"
+
         and structure_m30 == "BEAR"
+
         and bos_m15 == "BOS_DOWN"
+
         and choch_m5 == "BEAR_CHOCH"
+
         and atr >= CONTINUATION_MIN_ATR
+
         and 35 < rsi < 55
+
         and not over_extended
+
         and not too_many_red
     )
 
     continuation_buy = (
+
         trend_h1 == "BULL"
+
         and structure_m30 == "BULL"
+
         and bos_m15 == "BOS_UP"
+
         and choch_m5 == "BULL_CHOCH"
+
         and atr >= CONTINUATION_MIN_ATR
+
         and 45 < rsi < 65
+
         and not over_extended
+
         and not too_many_green
     )
 
@@ -811,19 +838,29 @@ def smart_money_signal(
     # =====================================================
 
     valid_buy_reversal = (
-        (
-            sweep == "SWEEP_LOW"
-            or choch_m5 == "BULL_CHOCH"
-        )
+
+        sweep == "SWEEP_LOW"
+
+        and choch_m5 == "BULL_CHOCH"
+
         and not strong_displacement
+
+        and not too_many_red
+
+        and rsi > 40
     )
 
     valid_sell_reversal = (
-        (
-            sweep == "SWEEP_HIGH"
-            or choch_m5 == "BEAR_CHOCH"
-        )
+
+        sweep == "SWEEP_HIGH"
+
+        and choch_m5 == "BEAR_CHOCH"
+
         and not strong_displacement
+
+        and not too_many_green
+
+        and rsi < 60
     )
 
     # =====================================================
@@ -855,6 +892,7 @@ def smart_money_signal(
     # =====================================================
 
     buy_grade = get_grade(score_buy)
+
     sell_grade = get_grade(score_sell)
 
     if continuation_buy:
@@ -871,10 +909,14 @@ def smart_money_signal(
 
         signal_mode = "REVERSAL"
 
+        # continuation BUY
         if continuation_buy:
+
             signal_mode = "CONTINUATION"
 
+        # reversal BUY
         else:
+
             if not valid_buy_reversal:
                 buy_grade = None
 
@@ -904,10 +946,14 @@ def smart_money_signal(
 
         signal_mode = "REVERSAL"
 
+        # continuation SELL
         if continuation_sell:
+
             signal_mode = "CONTINUATION"
 
+        # reversal SELL
         else:
+
             if not valid_sell_reversal:
                 sell_grade = None
 
@@ -928,6 +974,10 @@ def smart_money_signal(
                 "tp_buffer": round(price - 15 + TP_BUFFER, 2),
                 "reasons": reasons_sell
             }
+
+    # =====================================================
+    # NO SIGNAL
+    # =====================================================
 
     return {
         "type": "NO_SIGNAL"

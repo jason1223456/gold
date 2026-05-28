@@ -801,9 +801,10 @@ def smart_money_signal(
 
         and structure_m30 == "BEAR"
 
-        and bos_m15 == "BOS_DOWN"
-
-        and choch_m5 == "BEAR_CHOCH"
+        and (
+            choch_m5 == "BEAR_CHOCH"
+            or bos_m15 == "BOS_DOWN"
+        )
 
         and atr >= CONTINUATION_MIN_ATR
 
@@ -820,9 +821,10 @@ def smart_money_signal(
 
         and structure_m30 == "BULL"
 
-        and bos_m15 == "BOS_UP"
-
-        and choch_m5 == "BULL_CHOCH"
+        and (
+            choch_m5 == "BULL_CHOCH"
+            or bos_m15 == "BOS_UP"
+        )
 
         and atr >= CONTINUATION_MIN_ATR
 

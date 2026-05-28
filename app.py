@@ -807,7 +807,7 @@ def smart_money_signal(
 
         and atr >= CONTINUATION_MIN_ATR
 
-        and 35 < rsi < 55
+        and 30 < rsi < 60
 
         and not over_extended
 
@@ -826,7 +826,7 @@ def smart_money_signal(
 
         and atr >= CONTINUATION_MIN_ATR
 
-        and 45 < rsi < 65
+        and 40 < rsi < 70
 
         and not over_extended
 

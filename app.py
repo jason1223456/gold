@@ -111,7 +111,7 @@ SYMBOL = "XAU/USD"
 STATE_FILE = "trade_state.json"
 
 # 免費版穩定設定
-SCAN_INTERVAL = 300          # 5分鐘掃描一次訊號
+SCAN_INTERVAL = 90          # 5分鐘掃描一次訊號
 MONITOR_INTERVAL = 60        # 1分鐘監控一次持倉
 M5_STRUCTURE_INTERVAL = 300  # 5分鐘檢查一次 M5 結構
 REPORT_INTERVAL = 7200       # 2小時產生一次 OpenAI 市場報告
@@ -601,7 +601,7 @@ LAST_CONTINUATION_SIGNAL = {
     "SELL": 0
 }
 
-CONTINUATION_COOLDOWN = 2700
+CONTINUATION_COOLDOWN = 900
 
 
 # =====================================================

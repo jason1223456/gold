@@ -1020,9 +1020,9 @@ Reasons: {signal['reasons']}
 
 
 def generate_2h_report():
-    m1 = get_data_cached("1min", 60)
+    m1 = get_data_cached("1min", 120)
     m5 = get_data_cached("5min", 600)
-    m15 = get_data_cached("15min", 900)
+    m15 = get_data_cached("15min", 1200)
     m30 = get_data_cached("30min", 1800)
     h1 = get_data_cached("1h", 3600)
 
@@ -1087,9 +1087,9 @@ def generate_2h_report():
 def scan_market():
     print("掃描市場中...")
 
-    m1 = get_data_cached("1min", 60)
+    m1 = get_data_cached("1min", 120)
     m5 = get_data_cached("5min", 600)
-    m15 = get_data_cached("15min", 900)
+    m15 = get_data_cached("15min", 1200)
     m30 = get_data_cached("30min", 1800)
     h1 = get_data_cached("1h", 3600)
 

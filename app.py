@@ -384,7 +384,7 @@ def get_current_price():
 # SMART MONEY
 # =====================================================
 
-def find_swings(df, lookback=3):
+def find_swings(df, lookback=2):
     swing_highs = []
     swing_lows = []
 

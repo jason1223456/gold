@@ -111,7 +111,7 @@ SYMBOL = "XAU/USD"
 STATE_FILE = "trade_state.json"
 
 # 免費版穩定設定
-SCAN_INTERVAL = 90          # 5分鐘掃描一次訊號
+SCAN_INTERVAL = 180          # 5分鐘掃描一次訊號
 MONITOR_INTERVAL = 60        # 1分鐘監控一次持倉
 M5_STRUCTURE_INTERVAL = 300  # 5分鐘檢查一次 M5 結構
 REPORT_INTERVAL = 7200       # 2小時產生一次 OpenAI 市場報告
@@ -454,18 +454,18 @@ def detect_choch(df):
 
 
 def trend(df):
+
     last = df.iloc[-1]
 
     close = last["close"]
     ema20 = last["EMA20"]
     ema50 = last["EMA50"]
     rsi = last["RSI"]
-    structure = market_structure(df)
 
-    if close > ema20 > ema50 and rsi > 55 and structure == "BULL":
+    if close > ema20 > ema50 and rsi > 55:
         return "BULL"
 
-    if close < ema20 < ema50 and rsi < 45 and structure == "BEAR":
+    if close < ema20 < ema50 and rsi < 45:
         return "BEAR"
 
     return "SIDEWAYS"
@@ -799,7 +799,7 @@ def smart_money_signal(
 
         trend_h1 == "BEAR"
 
-        and structure_m30 == "BEAR"
+        and structure_m30 in ["BEAR", "SIDEWAYS"]
 
         and (
             choch_m5 == "BEAR_CHOCH"
@@ -819,7 +819,7 @@ def smart_money_signal(
 
         trend_h1 == "BULL"
 
-        and structure_m30 == "BULL"
+        and structure_m30 in ["BULL", "SIDEWAYS"]
 
         and (
             choch_m5 == "BULL_CHOCH"
@@ -1020,7 +1020,7 @@ Reasons: {signal['reasons']}
 
 
 def generate_2h_report():
-    m1 = get_data_cached("1min", 120)
+    m1 = get_data_cached("1min", 180)
     m5 = get_data_cached("5min", 600)
     m15 = get_data_cached("15min", 1200)
     m30 = get_data_cached("30min", 1800)
@@ -1087,7 +1087,7 @@ def generate_2h_report():
 def scan_market():
     print("掃描市場中...")
 
-    m1 = get_data_cached("1min", 120)
+    m1 = get_data_cached("1min", 180)
     m5 = get_data_cached("5min", 600)
     m15 = get_data_cached("15min", 1200)
     m30 = get_data_cached("30min", 1800)

@@ -373,7 +373,7 @@ def get_data_cached(interval, cache_seconds=60):
 
 
 def get_current_price():
-    df = get_data_cached("1min", 300)
+    df = get_data_cached("1min", 30)
 
     if df is None:
         return None

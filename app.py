@@ -982,8 +982,14 @@ def smart_money_signal(
     # =====================================================
 
     return {
-        "type": "NO_SIGNAL"
+    "type": "NO_SIGNAL",
+    "debug": {
+        "score_buy": score_buy,
+        "score_sell": score_sell,
+        "continuation_buy": continuation_buy,
+        "continuation_sell": continuation_sell
     }
+}
 
 # =====================================================
 # GPT
@@ -1472,10 +1478,21 @@ M5 Sweep：
 M5 RSI：
 {current_rsi}
 
+BUY SCORE：
+{signal.get("debug", {}).get("score_buy")}
+
+SELL SCORE：
+{signal.get("debug", {}).get("score_sell")}
+
+CONT BUY：
+{signal.get("debug", {}).get("continuation_buy")}
+
+CONT SELL：
+{signal.get("debug", {}).get("continuation_sell")}
+
 Signal：
 {signal}
 """)
-
     save_state(state)
 
     return state

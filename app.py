@@ -1889,6 +1889,37 @@ TP2：{signal['tp2']}
 
 原因：
 {', '.join(signal['reasons'])}
+===== DEBUG REPORT =====
+
+Price：
+{price}
+
+H1 Trend：
+{h1_trend}
+
+M30 Structure：
+{m30_structure}
+
+M15 BOS：
+{m15_bos}
+
+M5 CHOCH：
+{m5_choch}
+
+M5 Sweep：
+{m5_sweep}
+
+BUY SCORE：
+{score_buy}
+
+SELL SCORE：
+{score_sell}
+
+CONT BUY：
+{continuation_buy}
+
+CONT SELL：
+{continuation_sell}
 
 ===== GPT-5 分析 =====
 {ai_text}

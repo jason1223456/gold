@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Fri Jun 19 03:24:52 2026
+
+@author: chenguanting
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jun 19 03:12:21 2026
+
+@author: chenguanting
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Tue May 12 20:49:02 2026
 
 @author: chenguanting
@@ -937,7 +953,20 @@ def smart_money_signal(
                 "tp1": round(price + 15, 2),
                 "tp2": round(price + 30, 2),
                 "tp_buffer": round(price + 15 - TP_BUFFER, 2),
-                "reasons": reasons_buy
+                "reasons": reasons_buy,
+                "debug": {
+                  "score_buy": score_buy,
+                  "score_sell": score_sell,
+                  "continuation_buy": continuation_buy,
+                  "continuation_sell": continuation_sell,
+                  "trend_h1": trend_h1,
+                  "structure_m30": structure_m30,
+                  "bos_m15": bos_m15,
+                  "choch_m5": choch_m5,
+                  "sweep": sweep,
+                  "rsi": round(rsi, 2),
+                  "atr": round(atr, 2)
+                 }
             }
 
     # =====================================================
@@ -974,9 +1003,21 @@ def smart_money_signal(
                 "tp1": round(price - 15, 2),
                 "tp2": round(price - 30, 2),
                 "tp_buffer": round(price - 15 + TP_BUFFER, 2),
-                "reasons": reasons_sell
-            }
-
+                "reasons": reasons_sell,
+                "debug": {
+                 "score_buy": score_buy,
+                 "score_sell": score_sell,
+                 "continuation_buy": continuation_buy,
+                 "continuation_sell": continuation_sell,
+                 "trend_h1": trend_h1,
+                 "structure_m30": structure_m30,
+                 "bos_m15": bos_m15,
+                 "choch_m5": choch_m5,
+                 "sweep": sweep,
+                 "rsi": round(rsi, 2),
+                 "atr": round(atr, 2)
+              }
+       }
     # =====================================================
     # NO SIGNAL
     # =====================================================
@@ -1823,7 +1864,6 @@ M5 出現 BULL CHOCH
 
 def main():
     send_telegram("✅ Gold AI Trader 已啟動（穩定版 + 2H AI報告）")
-
     state = load_state()
     last_scan_time = 0
 
@@ -1873,7 +1913,7 @@ def main():
 
                     if state.get("last_signal_id") != signal_id:
                         ai_text = analyze_trade_with_ai(signal)
-
+                        debug = signal.get("debug", {})
                         msg = f"""
 🔥 {signal['grade']}級訊號｜XAUUSD
 
@@ -1889,37 +1929,41 @@ TP2：{signal['tp2']}
 
 原因：
 {', '.join(signal['reasons'])}
+
 ===== DEBUG REPORT =====
 
-Price：
-{price}
-
 H1 Trend：
-{h1_trend}
+{debug.get('trend_h1')}
 
 M30 Structure：
-{m30_structure}
+{debug.get('structure_m30')}
 
 M15 BOS：
-{m15_bos}
+{debug.get('bos_m15')}
 
 M5 CHOCH：
-{m5_choch}
+{debug.get('choch_m5')}
 
 M5 Sweep：
-{m5_sweep}
+{debug.get('sweep')}
 
 BUY SCORE：
-{score_buy}
+{debug.get('score_buy')}
 
 SELL SCORE：
-{score_sell}
+{debug.get('score_sell')}
 
 CONT BUY：
-{continuation_buy}
+{debug.get('continuation_buy')}
 
 CONT SELL：
-{continuation_sell}
+{debug.get('continuation_sell')}
+
+RSI：
+{debug.get('rsi')}
+
+ATR：
+{debug.get('atr')}
 
 ===== GPT-5 分析 =====
 {ai_text}

@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Fri Jun 19 09:50:21 2026
+
+@author: chenguanting
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Fri Jun 19 03:24:52 2026
 
 @author: chenguanting
@@ -289,7 +297,14 @@ def get_trade_stats():
         total = len(df)
         wins = len(df[df["result"] == "WIN"])
         losses = len(df[df["result"] == "LOSS"])
-        win_rate = wins / total * 100
+        breakevens = len(df[df["result"] == "BREAKEVEN"])
+
+        effective_total = wins + losses
+
+        if effective_total > 0:
+          win_rate = wins / effective_total * 100
+        else:
+          win_rate = 0
 
         total_points = df["pnl_points"].sum()
         avg_points = df["pnl_points"].mean()
@@ -315,6 +330,7 @@ def get_trade_stats():
 總交易：{total}
 勝：{wins}
 敗：{losses}
+平：{breakevens}
 勝率：{round(win_rate, 2)}%
 
 總點數：{round(total_points, 2)}
@@ -1327,11 +1343,12 @@ TP2：{tp2}
                 exit_price
             )
 
-            result = (
-                "WIN"
-                if pnl_points > 0
-                else "LOSS"
-            )
+            if pnl_points > 0:
+             result = "WIN"
+            elif pnl_points < 0:
+               result = "LOSS"
+            else:
+                result = "BREAKEVEN"
 
             save_trade_to_supabase(
                 trade,
